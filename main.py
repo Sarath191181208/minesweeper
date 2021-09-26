@@ -1,3 +1,4 @@
+from timer import Timer
 import pygame
 import random
 
@@ -6,7 +7,7 @@ pygame.init()
 clock = pygame.time.Clock()
 WIN = pygame.display.set_mode((540, 600))
 pygame.display.set_caption('minesweeper')
-FPS = 20
+FPS = 60
 
 WHITE = (215, 215, 215)
 GREAY = (70, 70, 70)
@@ -39,8 +40,16 @@ class Grid():
         self.noOfMines = noOfMines
 
     def create_board(self) -> None:
+
+        # reseting the board
+        for row in self.cubes:
+            for cube in row:
+                cube.reset()
+
         self.mineLocations = {}
         minesPlaced = 0
+
+        # creating mines
         while(minesPlaced < self.noOfMines):
             x = random.randint(0, self.rows-1)
             y = random.randint(0, self.cols-1)
@@ -48,6 +57,8 @@ class Grid():
                 self.mineLocations[str(x)+str(y)] = (x, y)
                 self.cubes[x][y].value = -1
                 minesPlaced += 1
+
+        # placing numbers on blocks
         for pos in self.mineLocations:
             x, y = self.mineLocations[pos]
             for i in range(max(0, x-1), min(self.rows, x+2)):
@@ -57,6 +68,7 @@ class Grid():
                     if self.cubes[i][j].value != -1:
                         self.cubes[i][j].value += 1
 
+
     def __str__(self) -> str:
         string = ""
         for i in range(self.rows):
@@ -64,7 +76,6 @@ class Grid():
                 string += str(self.cubes[i][j].value) + (" ")
             string += "\n"
         return string
-# TODO : must add drawing logic
 
     def draw(self, win=None) -> None:
         if win == None:
@@ -85,7 +96,7 @@ class Grid():
         for i in range(self.cols+1):
             pygame.draw.line(win, BLACK, (i*colGap, 0), (colGap*i, self.width))
         pygame.display.update()
-    # TODO mouse click
+
 
     def dig(self, x, y, depth=6):
         if depth == 0:
@@ -114,6 +125,9 @@ class Grid():
             return 0
         self.dig(x, y)
         self.draw()
+    
+    def reset(self):
+        self.create_board()
 
 
 class Cube():
@@ -126,46 +140,53 @@ class Cube():
         self.cols = cols
         self.rows = rows
         self.centerFactor = 10
+
         self.show = False
         self.colour = checksClr
 
     def draw(self, win):
-        # fnt = pygame.font.SysFont('comicsans', 40)
+
         rowGap = self.height / self.rows
         colGap = self.width / self.cols
         x = self.col * colGap
         y = self.row * rowGap
-        # todo drawing
-        # if (self.col % 2) == (self.row % 2):
-        #     pygame.draw.rect(win, checksClr, pygame.Rect(x, y, colGap, rowGap))
+
+        text_size = int(rowGap//2 +3)
+
         if self.show:
             pygame.draw.rect(win, self.colour,
                              pygame.Rect(x, y, colGap, rowGap))
             if (self.value != 0) and self.value != -1:
-                # newImg = pygame.transform.scale(queenImg, (int(colGap-self.centerFactor), int(rowGap-self.centerFactor)))
-                # win.blit(newImg, (x+self.centerFactor/2, y+self.centerFactor/2))
-                text = PYtxt(str(self.value))
+                
+                text = PYtxt(str(self.value),text_size)
                 win.blit(text, (x + (colGap/2 - text.get_width()/2),
                                 y + (rowGap/2 - text.get_height()/2)))
             elif self.value == -1:
-                text = PYtxt("*")
+                text = PYtxt("*",text_size)
                 win.blit(text, (x + (colGap/2 - text.get_width()/2),
                                 y + (rowGap/2 - text.get_height()/4)))
 
-                # WIN.blit(PYtxt('Solved'), (20, 560) -> position)
-                # pygame.display.update()
-                # win.blit(text, (x + (colGap/2 - text.get_width()/2),
-                #                 y + (rowGap/2 - text.get_height()/2)))
+    def reset(self):
+        self.colour = checksClr
+        self.show = False
+        self.value = 0
 
 
-board = Grid(20, 20, WIN.get_width(), WIN.get_width(), 10)
+board = Grid(30, 30, WIN.get_width(), WIN.get_width(), 10)
 board.create_board()
 board.draw()
+
+timer = Timer(1)
 
 run = True
 mousePause = False
 while run:
     clock.tick(FPS)
+    if pygame.mouse.get_pressed()[0] and mousePause and not timer.start:
+        board.reset()
+        mousePause = False
+        board.draw()
+
     if pygame.mouse.get_pressed()[0] and not mousePause:
         x, y = pygame.mouse.get_pos()
         y //= board.width // board.cols
@@ -177,8 +198,11 @@ while run:
                 board.cubes[x][y].show = True
             board.draw()
             mousePause = True
+            timer.start_timer()
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
+
+    timer.update()
 pygame.quit()
